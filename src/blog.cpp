@@ -26,8 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <sstream>
 
-#include <httppp/http.h>
-#include <httppp/httpd.h>
+#include "blog.h"
 
 void sendResponse(libhttppp::Connection *curcon,libhttppp::HttpRequest *curreq) {
      libhttppp::HttpResponse curres;
@@ -55,43 +54,75 @@ void sendResponse(libhttppp::Connection *curcon,libhttppp::HttpRequest *curreq) 
      curres.send(curcon,buffer.c_str(),buffer.length());
 };
 
-class Controller : public libhttppp::Event {
-public:
-  Controller(libhttppp::ServerSocket* serversocket) : Event(serversocket){
+tinyblog::BlogIndexPage::BlogIndexPage(){
+  Template *blogtpl=NULL;
+  TemplatePool::Instance().getTemplateCopy("Index.tpl.html",&blogtpl);
     
-  };
-  void RequestEvent(libhttppp::Connection *curcon){
+}
+
+tinyblog::BlogIndexPage::~BlogIndexPage(){
+}
+
+tinyblog::BlogController::BlogController(libhttppp::ServerSocket* serversocket) : libhttppp::Event(serversocket){
+};
+  
+tinyblog::BlogController::~BlogController(){
+}
+
+void tinyblog::BlogController::RequestEvent(libhttppp::Connection* curcon)
+{
    try{
-     std::cerr << "Parse Request\n";
      libhttppp::HttpRequest curreq;
      curreq.parse(curcon);
-     std::cerr << "Send answer\n";
-     sendResponse(curcon,&curreq);
+     const char *url=curreq.getRequestURL();
+     if(url){
+         if(strcmp("/",url)==0){
+             sendResponse(curcon,&curreq);
+         }
+     }else{
+     libhttppp::HttpResponse curres;
+     curres.setState(HTTP404);
+     curres.setVersion(HTTPVERSION(1.1));
+     curres.setContentType("text/html");         
+     }
+     
    }catch(libhttppp::HTTPException &e){
      std::cerr << e.what() << "\n";
      throw e;
    }
   }
-private:
+
   
-};
+tinyblog::Blog::Blog(int argc, char** argv) : HttpD(argc,argv){
+  CmdController->registerCmd("templatepath",'t', true,(const char*) NULL,"Templatepath");
+  CmdController->registerCmd("dbpath",'d', true,(const char*) NULL,"DBPath");
+  CmdController->parseCmd(argc,argv);
+  if (!CmdController->checkRequired()) {
+    CmdController->printHelp();
+    _httpexception.Critical("cmd parser not enough arguments given");
+    throw _httpexception;
+  }
+  if(CmdController->getHTTPDCmdbyKey("templatepath")){
+    TemplatePool::Instance().setTemplatePath(CmdController->getHTTPDCmdbyKey("templatepath")->getValue());
+  }
+}
 
+tinyblog::Blog::~Blog(){
+    TemplatePool::Instance().clearPool();
+}
 
+void tinyblog::Blog::RunEventLoop(){
+  libhttppp::HTTPException httpexception;
+  try {
+    BlogController blogcontroller(getServerSocket());
+    blogcontroller.runEventloop();
+  }catch(libhttppp::HTTPException &e){
+    std::cerr << e.what() << "\n";
+  }    
+}
 
-class BlogD : public libhttppp::HttpD {
-public:
-  BlogD(int argc, char** argv) : HttpD(argc,argv){
-    libhttppp::HTTPException httpexception;
-    try {
-      Controller controller(getServerSocket());
-      controller.runEventloop();
-    }catch(libhttppp::HTTPException &e){
-      std::cerr << e.what() << "\n";
-    }
-  };
-private:
-};
 
 int main(int argc, char** argv){
-  BlogD(argc,argv);
+  tinyblog::Blog blog(argc,argv);
+  blog.RunEventLoop();
 }

@@ -1,6 +1,7 @@
 find_package(httppp REQUIRED)
 
 set(tinyblogSrcs
+  template.cpp
   blog.cpp
 )
 

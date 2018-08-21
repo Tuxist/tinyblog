@@ -23,8 +23,40 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/ 
 
+#include <httppp/http.h>
+#include <httppp/httpd.h>
+
+#include "template.h"
+
+#ifndef BLOG_H
+#define BLOG_H
+
 namespace tinyblog {
-  class Blog {
+  class BlogIndexPage{
+  public:
+      BlogIndexPage();
+      ~BlogIndexPage();
+  private:
       
   };
+  
+  class BlogController : public libhttppp::Event {
+  public:
+      BlogController(libhttppp::ServerSocket* serversocket);
+      ~BlogController();
+      void RequestEvent(libhttppp::Connection *curcon);
+  private:
+  };
+  
+  class Blog : public libhttppp::HttpD{
+  public:
+      Blog(int argc, char** argv);
+      ~Blog();
+      void Controller();
+      void RunEventLoop();
+  private:
+      libhttppp::HTTPException   _httpexception;
+  };
 };
+
+#endif

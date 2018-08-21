@@ -1,1 +1,1 @@
- 
+#define MAX_TEMPLATE_NAMESIZE 255 
